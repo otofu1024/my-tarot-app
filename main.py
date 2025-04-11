@@ -3,109 +3,167 @@ import os
 import random
 import json
 import traceback
+import time
 
-with open("cards_meaning/big_cards.json", mode = "r", encoding="utf-8") as f:
+# タロットカードの情報を読み込み
+with open("cards_meaning/big_cards.json", mode="r", encoding="utf-8") as f:
     cards_meaning = json.load(f)
 
-def get_api_key():
+def setup_gemini_model():
+    """APIキーを取得し、Geminiモデルを初期化する"""
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-    if GOOGLE_API_KEY is None:
+    if not GOOGLE_API_KEY:
         print("エラー: 環境変数 'GOOGLE_API_KEY' が設定されていません。")
-        print("システムに環境変数を設定するか、コード内で直接APIキーを指定してください。")
-        exit()
+        return None
 
     try:
         genai.configure(api_key=GOOGLE_API_KEY)
+        return genai.GenerativeModel("gemini-1.5-flash")
     except Exception as e:
-        print(f"APIキーの設定でエラーが発生しました: {e}")
-        exit()
-
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-    except Exception as e:
-        print(f"モデルの初期化中にエラーが発生しました: {e}")
-        exit()
-
-    return model
+        print(f"Gemini APIの初期化でエラー: {e}")
+        return None
 
 def select_card(cards, num):
-    place = ["meaning_up", "meaning_rev"]
-    card = []
-    for i in range(num):
-        card += [[random.choice(place), random.choice(cards)]]
-        cards.remove(card[i][1])
-    return card
-
-def meaning(mean):
-    """タロットカードの意味を取得する"""
-    meaning = {
-        "meaning_up": "正位置",
-        "meaning_rev": "逆位置"
-    }
-    return meaning[mean]
-
-def create_prompt(question=None):
-    """Gemini APIに送るプロンプトを作成する"""
-    five_counts = ["現在の状況、状態", "障害、原因", "現状維持で予想される傾向", "問題解決のための対策", "最終結果"]
-    prompt = "あなたは経験豊富なタロット占い師です。\n以下のタロットカードの結果に基づいて、相談内容について占ってください。\n\n"
-    selects = select_card(cards_meaning, len(five_counts))
-
-    if question:
-        prompt += f"相談内容: {question}\n\n"
-    else:
-        prompt += "相談内容: (指定なし。全体的な運勢やアドバイス)\n\n"
-
-    prompt += "--- 出たカード ---\n"
-
-    for i in range(len(five_counts)):
-        card_position = selects[i][0]
-        card_details = selects[i][1]
-        prompt += f"『{five_counts[i]}』を示す位置には{card_position}の『{card_details['name']}』。意味は{card_details[card_position]}\n"
+    """指定された枚数のカードをランダムに選択する"""
+    cards_copy = cards.copy()  # 元のリストを変更しないようにコピー
+    positions = ["meaning_up", "meaning_rev"]
+    selected_cards = []
     
-    prompt += "-----------------\n\n"
+    for _ in range(min(num, len(cards_copy))):
+        card_details = random.choice(cards_copy)
+        position = random.choice(positions)
+        selected_cards.append([position, card_details])
+        cards_copy.remove(card_details)
+    
+    return selected_cards
 
-    prompt += "上記のカードの配置とそれぞれの意味（正位置・逆位置を含む）を考慮し、具体的で洞察に満ちた、優しい言葉でアドバイスをお願いします。単にカードの意味を並べるだけでなく、カード同士の関連性も読み解き、相談者が前向きになれるような解釈をしてください。"
-    return prompt
+def create_interactive_tarot(model, question):
+    """対話形式のタロット占いを行う"""
+    positions = ["現在の状況、状態", "障害、原因", "現状維持で予想される傾向", "問題解決のための対策", "最終結果"]
+    
+
+    print("カードを選んでいます...")
+    selected_cards = select_card(cards_meaning, len(positions))
+    
+    print(f"\n========== タロット占い：{question if question else '全体運'} ==========\n")
+    print("これからカードを1枚ずつ解説していきます。あなたの反応を伺いながら進めていきますね。\n")
+    
+    # カードごとの対話を保存するコンテキスト
+    dialogue_context = []
+    posit = {"meaning_up": "正位置",
+             "meaning_rev": "逆位置"}
+    
+    # 各カードごとに対話形式で解釈
+    for i, (card_position, card_details) in enumerate(selected_cards):
+        position_name = positions[i]
+        card_name = card_details['name']
+        card_meaning = card_details[card_position]
+        
+        print(f"\n----- 「{position_name}」のカード -----")
+        time.sleep(1)
+        print(f"『{card_name}』が{posit[card_position]}で出ました。")
+        print(f"このカードの意味: {card_meaning}\n")
+        
+        # AIによる最初の解釈
+        prompt = f"""
+あなたは対話形式で占いを進める経験豊富なタロット占い師です。
+相談内容：{question if question else '全体的な運勢'}
+現在、「{position_name}」を示す位置に{card_position}の「{card_name}」が出ています。
+意味：{card_meaning}
+
+このカードについて、相談者に問いかけるように優しく解説し、
+「このカードはあなたの現状に当てはまりますか？」といった質問を投げかけてください。
+回答は200字以内でお願いします。
+"""
+        
+        try:
+            response = model.generate_content(prompt)
+            print(f"占い師: {response.text}\n")
+            
+            # ユーザーからの反応を待つ
+            user_response = input("あなた: ")
+            
+            # 対話を記録
+            dialogue_context.append({
+                "position": position_name,
+                "card": card_name,
+                "position_type": card_position,
+                "meaning": card_meaning,
+                "ai_comment": response.text,
+                "user_response": user_response
+            })
+            
+            # ユーザーの反応を踏まえたAIの解釈
+            follow_up_prompt = f"""
+相談者の反応：「{user_response}」
+
+相談者の反応を踏まえて、「{position_name}」のカード「{card_name}」({card_position})についての
+より個人化された解釈を提供してください。相談者の具体的な状況に寄り添った内容にしてください。
+回答は200字以内でお願いします。
+"""
+            follow_up_response = model.generate_content(follow_up_prompt)
+            print(f"\n占い師: {follow_up_response.text}")
+            print("\n(カードの解釈を続けるには、Enterキーを押してください)")
+            input()
+            
+            dialogue_context[-1]["ai_follow_up"] = follow_up_response.text
+            
+        except Exception as e:
+            print(f"エラーが発生しました: {e}")
+            traceback.print_exc()
+    
+    # 全カードの解釈が終わった後に総合的な解釈を提供
+    print("\n\n===== すべてのカードの解釈が終わりました =====")
+    print("最終的な総合解釈を生成しています...\n")
+    
+    # 総合解釈用のプロンプトを作成
+    final_prompt = f"相談内容：{question if question else '全体的な運勢やアドバイス'}\n\n"
+    final_prompt += "この占いで出たカードと相談者との対話の内容:\n"
+    
+    for dialogue in dialogue_context:
+        final_prompt += f"""
+位置: {dialogue['position']}
+カード: {dialogue['card']} ({dialogue['position_type']})
+カードの意味: {dialogue['meaning']}
+相談者の反応: {dialogue['user_response']}
+"""
+    
+    final_prompt += """
+上記の一連のカードと対話の内容を踏まえて、カード同士の関連性も考慮した総合的な解釈とアドバイスを提供してください。
+相談者が前向きになれるような、具体的で洞察に満ちた優しいメッセージにしてください。
+"""
+    
+    try:
+        final_response = model.generate_content(final_prompt)
+        print("\n----- 総合的な解釈 -----")
+        print(final_response.text)
+        print("-------------------------")
+        return True
+    except Exception as e:
+        print(f"総合解釈の生成中にエラーが発生しました: {e}")
+        traceback.print_exc()
+        return False
+
+def main():
+    """メインプログラム"""
+    # モデルの初期化
+    model = setup_gemini_model()
+    if not model:
+        print("モデルの初期化に失敗したため、プログラムを終了します。")
+        return
+    
+    print("=== 対話式タロット占い ===")
+    print("さて、今日は何を占いましょうか？")
+    
+    # 相談内容の入力
+    question = input("占いたい内容を入力してください (例: 恋愛運、仕事運、全体運など。入力なしでEnterも可): ")
+    question = question.strip() or None
+    
+    # 対話式タロット占いを実行
+    success = create_interactive_tarot(model, question)
+    
+    if not success:
+        print("\n占いの過程でエラーが発生しました。もう一度お試しください。")
 
 if __name__ == "__main__":
-    model = get_api_key() # APIキーの取得とモデルの初期化
-    if model: # モデルの初期化が成功した場合のみ実行
-        print("タロット占いを開始します。")
-
-        # 相談内容の入力
-        question = input("占いたい内容を入力してください (例: 恋愛運、仕事運、全体運など。入力なしでEnterも可): ")
-        if not question.strip(): # 入力が空かスペースのみの場合
-            question = None # Noneを設定して「指定なし」とする
-
-        print("カードを選び、プロンプトを作成しています...")
-        # プロンプト作成
-        prompt_text = create_prompt(question)
-
-        if prompt_text:
-            # ★★★ デバッグ用プリントを追加 ★★★
-            print("\n--- generate_contentに渡すプロンプトの型と内容 (確認用) ---")
-            print(f"Type: {type(prompt_text)}")
-            print("--- Prompt Content ---")
-            print(prompt_text)
-            print("----------------------")
-            print("-------------------------------------------------------------")
-
-            print("Geminiに応答を生成してもらっています...")
-            try:
-                # Gemini API呼び出し
-                response = model.generate_content(prompt_text)
-                print("\n--- Geminiからの占い結果 ---")
-                print(response.text)
-                print("--------------------------")
-            except Exception as e:
-                # ★★★ traceback を出力するように修正 ★★★
-                print(f"\n!!! Geminiからの応答生成中にエラーが発生しました: {e} !!!")
-                print("--- トレースバック情報 ---")
-                traceback.print_exc() # ★ 詳細なエラー箇所を出力
-                print("------------------------")
-        else:
-            # create_promptがNoneを返した場合 (例: カード選択失敗時)
-            print("プロンプトの作成に失敗しました。カードの枚数などを確認してください。")
-
-    else:
-        print("モデルの初期化に失敗したため、プログラムを終了します。")
+    main()
