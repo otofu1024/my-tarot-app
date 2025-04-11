@@ -6,7 +6,7 @@ import traceback
 import time
 
 # タロットカードの情報を読み込み
-with open("cards_meaning/big_cards.json", mode="r", encoding="utf-8") as f:
+with open("cards_meaning/all_cards.json", mode="r", encoding="utf-8") as f:
     cards_meaning = json.load(f)
 
 def setup_gemini_model():
