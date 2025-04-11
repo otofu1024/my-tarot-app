@@ -2,6 +2,7 @@ import google.generativeai as genai
 import os
 import random
 import json
+import traceback
 
 with open("cards_meaning/big_cards.json", mode = "r", encoding="utf-8") as f:
     cards_meaning = json.load(f)
@@ -56,7 +57,7 @@ def create_prompt(question=None):
 
     prompt += "--- 出たカード ---\n"
 
-    for i in len(five_counts):
+    for i in range(len(five_counts)):
         card_position = selects[i][0]
         card_details = selects[i][1]
         prompt += f"『{five_counts[i]}』を示す位置には{card_position}の『{card_details['name']}』。意味は{card_details[card_position]}\n"
@@ -67,21 +68,44 @@ def create_prompt(question=None):
     return prompt
 
 if __name__ == "__main__":
-    model = get_api_key()
+    model = get_api_key() # APIキーの取得とモデルの初期化
+    if model: # モデルの初期化が成功した場合のみ実行
+        print("タロット占いを開始します。")
 
-    # タロット占いの実行
-    print("タロット占いを開始します。")
-    print("カードをシャッフルしています...")
-    print("カードを引いています...")
+        # 相談内容の入力
+        question = input("占いたい内容を入力してください (例: 恋愛運、仕事運、全体運など。入力なしでEnterも可): ")
+        if not question.strip(): # 入力が空かスペースのみの場合
+            question = None # Noneを設定して「指定なし」とする
 
-    # 占いの実行
+        print("カードを選び、プロンプトを作成しています...")
+        # プロンプト作成
+        prompt_text = create_prompt(question)
 
-    print("Geminiに応答を生成してもらっています...")
-    try:
-        question = input("占いたい内容を入力してください。\n(例: 恋愛運、仕事運、全体運など): ")
-        response = model.generate_content(create_prompt(question))
-        print("\n--- Geminiからの応答 ---")
-        print(response.text)
-        print("------------------------")
-    except Exception as e:
-        print(f"Geminiからの応答生成中にエラーが発生しました: {e}")
+        if prompt_text:
+            # ★★★ デバッグ用プリントを追加 ★★★
+            print("\n--- generate_contentに渡すプロンプトの型と内容 (確認用) ---")
+            print(f"Type: {type(prompt_text)}")
+            print("--- Prompt Content ---")
+            print(prompt_text)
+            print("----------------------")
+            print("-------------------------------------------------------------")
+
+            print("Geminiに応答を生成してもらっています...")
+            try:
+                # Gemini API呼び出し
+                response = model.generate_content(prompt_text)
+                print("\n--- Geminiからの占い結果 ---")
+                print(response.text)
+                print("--------------------------")
+            except Exception as e:
+                # ★★★ traceback を出力するように修正 ★★★
+                print(f"\n!!! Geminiからの応答生成中にエラーが発生しました: {e} !!!")
+                print("--- トレースバック情報 ---")
+                traceback.print_exc() # ★ 詳細なエラー箇所を出力
+                print("------------------------")
+        else:
+            # create_promptがNoneを返した場合 (例: カード選択失敗時)
+            print("プロンプトの作成に失敗しました。カードの枚数などを確認してください。")
+
+    else:
+        print("モデルの初期化に失敗したため、プログラムを終了します。")
