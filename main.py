@@ -36,6 +36,35 @@ def select_card(cards, num):
     
     return selected_cards
 
+import time
+
+def safe_generate_content(model, prompt, max_retries=3):
+    """レート制限を考慮したコンテンツ生成関数"""
+    retries = 0
+    while retries < max_retries:
+        try:
+            return model.generate_content(prompt)
+        except google.api_core.exceptions.ResourceExhausted as e:
+            # レート制限エラーの場合
+            if "429" in str(e):
+                retry_delay = 10  # デフォルト待機時間
+                # エラーメッセージから待機時間を抽出する試み
+                import re
+                delay_match = re.search(r"retry_delay\s*{\s*seconds:\s*(\d+)", str(e))
+                if delay_match:
+                    retry_delay = int(delay_match.group(1)) + 1
+                
+                print(f"APIレート制限に達しました。{retry_delay}秒待機します...")
+                time.sleep(retry_delay)
+                retries += 1
+            else:
+                raise
+        except Exception as e:
+            print(f"エラーが発生しました: {e}")
+            raise
+    
+    raise Exception(f"最大再試行回数({max_retries})に達しました。")
+
 def create_interactive_tarot(model, question):
     """対話形式のタロット占いを行う"""
     positions = ["現在の状況、状態", "障害、原因", "現状維持で予想される傾向", "問題解決のための対策", "最終結果"]
@@ -61,7 +90,6 @@ def create_interactive_tarot(model, question):
         print(f"\n----- 「{position_name}」のカード -----")
         print(f"『{card_name}』が{posit[card_position]}で出ました。")
         print(f"このカードの意味: {card_meaning}\n")
-        
         # AIによる最初の解釈
         prompt = f"""
 あなたは対話形式で占いを進める経験豊富なタロット占い師です。
@@ -75,7 +103,7 @@ def create_interactive_tarot(model, question):
 """
 
         try:
-            response = model.generate_content(prompt)
+            response = safe_generate_content(model, prompt)
             print(f"占い師: {response.text}\n")
             
             # Userがyキーを押すまでループ
@@ -106,7 +134,7 @@ def create_interactive_tarot(model, question):
 より個人化された解釈を提供してください。相談者の具体的な状況に寄り添った内容にしてください。
 回答は200字以内でお願いします。
 """
-                follow_up_response = model.generate_content(follow_up_prompt)
+                follow_up_response = safe_generate_content(model, follow_up_prompt)
                 print(f"\n占い師: {follow_up_response.text}")
             
                 dialogue_context[-1]["ai_follow_up"] = follow_up_response.text
@@ -137,7 +165,7 @@ def create_interactive_tarot(model, question):
 """
     
     try:
-        final_response = model.generate_content(final_prompt)
+        final_response = safe_generate_content(model, final_prompt)
         print("\n----- 総合的な解釈 -----")
         print(final_response.text)
         print("-------------------------")
