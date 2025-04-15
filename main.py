@@ -3,7 +3,6 @@ import os
 import random
 import json
 import traceback
-import time
 
 # タロットカードの情報を読み込み
 with open("cards_meaning/all_cards.json", mode="r", encoding="utf-8") as f:
@@ -18,7 +17,7 @@ def setup_gemini_model():
 
     try:
         genai.configure(api_key=GOOGLE_API_KEY)
-        return genai.GenerativeModel("gemini-1.5-flash")
+        return genai.GenerativeModel("gemini-1.5-pro")
     except Exception as e:
         print(f"Gemini APIの初期化でエラー: {e}")
         return None
@@ -60,7 +59,6 @@ def create_interactive_tarot(model, question):
         card_meaning = card_details[card_position]
         
         print(f"\n----- 「{position_name}」のカード -----")
-        time.sleep(1)
         print(f"『{card_name}』が{posit[card_position]}で出ました。")
         print(f"このカードの意味: {card_meaning}\n")
         
@@ -75,38 +73,43 @@ def create_interactive_tarot(model, question):
 「このカードはあなたの現状に当てはまりますか？」といった質問を投げかけてください。
 回答は200字以内でお願いします。
 """
-        
+
         try:
             response = model.generate_content(prompt)
             print(f"占い師: {response.text}\n")
             
-            # ユーザーからの反応を待つ
-            user_response = input("あなた: ")
+            # Userがyキーを押すまでループ
+            while True:
+                user_response = input("あなたの反応を入力してください (終了するにはEnterだけ): ")
+                if user_response.strip() == '':
+                    print("次のカードに移りますね。")
+                    break
+                else:
+                    pass
             
-            # 対話を記録
-            dialogue_context.append({
-                "position": position_name,
-                "card": card_name,
-                "position_type": card_position,
-                "meaning": card_meaning,
-                "ai_comment": response.text,
-                "user_response": user_response
-            })
             
-            # ユーザーの反応を踏まえたAIの解釈
-            follow_up_prompt = f"""
+                # 対話を記録
+                dialogue_context.append({
+                    "position": position_name,
+                    "card": card_name,
+                    "position_type": card_position,
+                    "meaning": card_meaning,
+                    "ai_comment": response.text,
+                    "user_response": user_response
+                })
+            
+                # ユーザーの反応を踏まえたAIの解釈
+                follow_up_prompt = f"""
 相談者の反応：「{user_response}」
 
 相談者の反応を踏まえて、「{position_name}」のカード「{card_name}」({card_position})についての
 より個人化された解釈を提供してください。相談者の具体的な状況に寄り添った内容にしてください。
 回答は200字以内でお願いします。
 """
-            follow_up_response = model.generate_content(follow_up_prompt)
-            print(f"\n占い師: {follow_up_response.text}")
-            print("\n(カードの解釈を続けるには、Enterキーを押してください)")
-            input()
+                follow_up_response = model.generate_content(follow_up_prompt)
+                print(f"\n占い師: {follow_up_response.text}")
             
-            dialogue_context[-1]["ai_follow_up"] = follow_up_response.text
+                dialogue_context[-1]["ai_follow_up"] = follow_up_response.text
             
         except Exception as e:
             print(f"エラーが発生しました: {e}")
