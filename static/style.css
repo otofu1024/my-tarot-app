@@ -1,0 +1,357 @@
+/* --- 基本スタイル --- */
+body {
+    font-family: sans-serif;
+    margin: 0;
+    /* 全幅利用のためマージン削除 */
+    padding: 20px;
+    /* 内側にパディング */
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    /* グラデーション背景 */
+    background-size: 400% 400%;
+    /* アニメーション用サイズ */
+    animation: gradientBG 15s ease infinite;
+    /* 背景アニメーション適用 */
+    min-height: 100vh;
+    /* 画面の高さいっぱいに */
+    box-sizing: border-box;
+    /* paddingを含めて計算 */
+}
+
+@keyframes gradientBG {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+
+h1 {
+    color: #fff;
+    /* 白文字に */
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    /* 文字に影 */
+    margin-bottom: 30px;
+    /* 下マージン追加 */
+}
+
+button {
+    display: block;
+    margin: 25px auto;
+    /* 上下マージン調整 */
+    padding: 12px 25px;
+    /* 少し大きく */
+    font-size: 17px;
+    /* 少し大きく */
+    font-weight: bold;
+    /* 太字に */
+    cursor: pointer;
+    background-color: #ffffff;
+    /* 白背景 */
+    color: #e73c7e;
+    /* テーマカラー */
+    border: 2px solid #e73c7e;
+    /* 枠線 */
+    border-radius: 25px;
+    /* 角を丸く */
+    transition: all 0.3s ease;
+    /* 全てのプロパティを対象に */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    /* 影を少し濃く */
+}
+
+button:hover {
+    background-color: #e73c7e;
+    /* ホバー時背景色反転 */
+    color: #ffffff;
+    /* ホバー時文字色反転 */
+    transform: scale(1.05);
+    /* 少し拡大 */
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    /* ホバー時影を濃く */
+}
+
+button:active {
+    transform: scale(0.98);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+button:disabled {
+    /* 無効化時のスタイル */
+    background-color: #eee;
+    color: #aaa;
+    border-color: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+
+#reset-button {
+    background-color: #ffffff;
+    color: #f0ad4e;
+    border-color: #f0ad4e;
+}
+
+#reset-button:hover {
+    background-color: #f0ad4e;
+    color: #ffffff;
+    border-color: #f0ad4e;
+}
+
+/* --- コンテナ類 --- */
+#drawn-cards-area,
+#interaction-area,
+#interpretation-result {
+    background-color: rgba(255, 255, 255, 0.9);
+    /* 半透明の白背景 */
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    margin-top: 30px;
+}
+
+#drawn-cards-area h2,
+#interaction-area label,
+#interpretation-result h3 {
+    color: #333;
+    /* 見出しの色を濃く */
+    margin-top: 0;
+    /* 上マージン削除 */
+    margin-bottom: 20px;
+    text-align: center;
+    /* 中央揃え */
+    border-bottom: 1px solid #eee;
+    /* 下線 */
+    padding-bottom: 10px;
+    /* 下線との間隔 */
+}
+
+/* --- カード表示 --- */
+.drawn-card {
+    border: 1px solid #ddd;
+    /* 枠線を少し薄く */
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #fff;
+    border-radius: 8px;
+    /* 角丸調整 */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    /* ホバー用トランジション */
+}
+
+/* カードホバーエフェクト (任意) */
+/*
+.drawn-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+}
+*/
+
+.drawn-card h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: #23a6d5;
+    /* カード名の色変更 */
+    font-size: 1.1em;
+}
+
+.position-name {
+    font-weight: bold;
+    color: #555;
+    /* ポジション名の色調整 */
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.95em;
+}
+
+.drawn-card p {
+    margin: 0;
+    font-size: 1em;
+    line-height: 1.5;
+    color: #444;
+    /* 意味テキストの色 */
+}
+
+/* --- 解釈表示 --- */
+#interpretation-text {
+    font-size: 1.1em;
+    line-height: 1.7;
+    /* 行間を少し広げる */
+    color: #333;
+    /* テキスト色 */
+    min-height: 1.7em;
+    padding: 10px;
+    /* 内側に少しパディング */
+    border: 2px solid transparent;
+    /* アニメーション用初期枠線 */
+    border-radius: 5px;
+    transition: border-color 0.5s ease-out;
+    /* 枠線色変化のトランジション */
+}
+
+/* 解釈表示時の枠線アニメーション用クラス */
+#interpretation-text.active-border {
+    border-color: #23d5ab;
+    /* 枠線の色 */
+}
+
+
+#interpretation-text h1,
+#interpretation-text h2,
+#interpretation-text h3 {
+    margin-top: 1.8em;
+    /* 見出し上のマージン調整 */
+    margin-bottom: 0.8em;
+    color: #e73c7e;
+    /* 見出しの色変更 */
+    border-bottom: 1px dashed #eee;
+    /* 見出し下線 */
+    padding-bottom: 5px;
+}
+
+#interpretation-text h1:first-child,
+/* 最初の見出しのマージン調整 */
+#interpretation-text h2:first-child,
+#interpretation-text h3:first-child {
+    margin-top: 0.5em;
+}
+
+
+#interpretation-text p {
+    margin-bottom: 1.2em;
+    /* 段落下のマージン調整 */
+}
+
+#interpretation-text ul,
+#interpretation-text ol {
+    margin-left: 25px;
+    /* リストのインデント調整 */
+    margin-bottom: 1.2em;
+    padding-left: 0;
+    /* デフォルトのpadding削除 */
+}
+
+#interpretation-text li {
+    margin-bottom: 0.5em;
+    /* リスト項目の間隔 */
+}
+
+#interpretation-text strong {
+    color: #e73c7e;
+    /* 強調文字の色 */
+    font-weight: 600;
+    /* 少し太く */
+}
+
+#interpretation-text code {
+    /* コードブロックのスタイル */
+    background-color: #f0f0f0;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+#interpretation-text pre {
+    /* preタグのスタイル */
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+    /* 横スクロール */
+}
+
+#interpretation-text pre code {
+    background-color: transparent;
+    padding: 0;
+}
+
+
+/* --- アニメーション --- */
+
+/* カード表示アニメーション */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px) scale(0.98);
+    }
+
+    /* 開始時少し小さく */
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.card-fade-in {
+    animation: fadeIn 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    /* イージング変更 */
+}
+
+
+/* ローディングアニメーション */
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 0.2;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.loading-dots span {
+    display: inline-block;
+    margin: 0 1px;
+    animation: blink 1.4s infinite both;
+    color: #e73c7e;
+    /* ドットの色 */
+    font-size: 1.2em;
+    /* ドットのサイズ */
+}
+
+.loading-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.loading-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+/* カーソルスタイル */
+.cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    background-color: #e73c7e;
+    /* カーソルの色 */
+    animation: cursor-blink 1s infinite;
+    vertical-align: text-bottom;
+    margin-left: 1px;
+}
+
+@keyframes cursor-blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+}

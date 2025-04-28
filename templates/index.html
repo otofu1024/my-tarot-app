@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>対話型タロット占い (ギリシャ十字)</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- styleタグは削除 -->
+</head>
+
+<body>
+    <h1>対話型タロット占い (ギリシャ十字)</h1>
+
+    <button id="draw-button">カードを引く (残り 5 枚)</button>
+    <button id="reset-button" style="display: none;">リセット</button>
+
+    <div id="drawn-cards-area">
+        <h2>引いたカード</h2>
+        <div id="cards-list"></div>
+    </div>
+
+    <div id="interaction-area" style="display: none;">
+        <label for="user-question">質問を入力してください:</label><br>
+        <textarea id="user-question" rows="4" cols="50" placeholder="例: これらのカードから、今後の仕事運について詳しく教えてください。"></textarea><br>
+        <button id="interpret-button">解釈を依頼する</button>
+    </div>
+
+    <div id="interpretation-result" style="display: none;">
+        <h3>AIによる解釈</h3>
+        <div id="interpretation-text"></div>
+    </div>
+
+    <script>
+        const drawButton = document.getElementById('draw-button');
+        const resetButton = document.getElementById('reset-button');
+        const cardsListDiv = document.getElementById('cards-list');
+        const interactionArea = document.getElementById('interaction-area');
+        const interpretationResultDiv = document.getElementById('interpretation-result');
+        const interpretationTextDiv = document.getElementById('interpretation-text');
+        const userQuestionTextarea = document.getElementById('user-question');
+
+        const MAX_CARDS = 5;
+        let cardCount = 0;
+        let typingTimeout = null;
+
+        const positionNames = [
+            "1. 現在の状況、状態", "2. 障害、原因", "3. 現状維持で予想される傾向",
+            "4. 問題解決のための対策", "5. 最終結果"
+        ];
+
+        function typeWriterEffect(htmlContent, element, speed = 25) {
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+                typingTimeout = null;
+            }
+            element.innerHTML = '';
+            element.classList.add('active-border');
+            let i = 0;
+            let currentHTML = '';
+            let tagBuffer = '';
+            let inTag = false;
+
+            function type() {
+                if (i < htmlContent.length) {
+                    const char = htmlContent[i];
+
+                    if (char === '<') {
+                        inTag = true;
+                        tagBuffer += char;
+                    } else if (char === '>') {
+                        inTag = false;
+                        tagBuffer += char;
+                        currentHTML += tagBuffer;
+                        element.innerHTML = currentHTML;
+                        tagBuffer = '';
+                    } else if (inTag) {
+                        tagBuffer += char;
+                    } else {
+                        currentHTML += char;
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = currentHTML + '<span class="cursor">|</span>';
+                        element.innerHTML = tempDiv.innerHTML;
+                    }
+
+                    i++;
+                    // タイピング中もスクロールを一番下に維持
+                    element.scrollTop = element.scrollHeight;
+                    typingTimeout = setTimeout(type, speed);
+                } else {
+                    element.innerHTML = currentHTML;
+                    typingTimeout = null;
+                    // タイピング完了後、念のため再度スクロール
+                    interpretationResultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+            type();
+        }
+
+
+        drawButton.addEventListener('click', function () {
+            drawButton.disabled = true;
+            fetch('/draw_card', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error && data.card_count >= MAX_CARDS) {
+                        alert(data.error);
+                        // 5枚引き終わっている場合のエラーでも質問エリア表示とスクロール
+                        interactionArea.style.display = 'block';
+                        resetButton.style.display = 'inline-block';
+                        setTimeout(() => {
+                            interactionArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 100);
+                    } else if (data.error) {
+                        alert(data.error);
+                    } else {
+                        const newCard = data.new_card;
+                        const cardIndex = data.card_count - 1;
+                        const positionName = positionNames[cardIndex] || `${data.card_count}枚目`;
+
+                        const cardDiv = document.createElement('div');
+                        cardDiv.classList.add('drawn-card');
+                        cardDiv.style.opacity = '0';
+                        cardDiv.innerHTML = `
+                        <span class="position-name">${positionName}</span>
+                        <h4>${newCard.card_name} (${newCard.orientation})</h4>
+                        <p>意味: ${newCard.meaning}</p>
+                    `;
+                        cardsListDiv.appendChild(cardDiv);
+                        // 各カード追加時のスクロールは削除
+
+                        setTimeout(() => {
+                            cardDiv.classList.add('card-fade-in');
+                            cardDiv.style.opacity = '1';
+                        }, 50);
+
+                        cardCount = data.card_count;
+                        updateDrawButtonText();
+
+                        if (cardCount >= MAX_CARDS) {
+                            drawButton.style.display = 'none';
+                            interactionArea.style.display = 'block';
+                            resetButton.style.display = 'inline-block';
+                            // 5枚引き終わったら質問エリアにスクロール
+                            setTimeout(() => {
+                                interactionArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 300); // カード表示アニメーション後にスクロール
+                        } else {
+                            resetButton.style.display = 'inline-block';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('カード取得Fetchエラー:', error);
+                    alert('カード情報の取得に失敗しました。');
+                })
+                .finally(() => {
+                    drawButton.disabled = false;
+                });
+        });
+
+        document.getElementById('interpret-button').addEventListener('click', function () {
+            if (cardCount < MAX_CARDS) {
+                alert(`${MAX_CARDS}枚のカードを引いてください。`);
+                return;
+            }
+
+            const userQuestion = userQuestionTextarea.value;
+            const interpretButton = this;
+
+            interpretButton.disabled = true;
+            interpretButton.textContent = '解釈中...';
+
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+                typingTimeout = null;
+            }
+            interpretationTextDiv.classList.remove('active-border');
+            interpretationTextDiv.innerHTML = `<p style="text-align: center;"><span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></p>`;
+            interpretationResultDiv.style.display = 'block';
+
+            // 解釈結果エリアが表示されたらスクロール (少し遅延させる)
+            setTimeout(() => {
+                interpretationResultDiv.scrollIntoView({ behavior: 'smooth', block: 'start' }); // 上端に表示
+            }, 100);
+
+
+            fetch('/interpret', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: userQuestion })
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(errData => {
+                            throw new Error(errData.error || `Network response was not ok ${response.statusText}`);
+                        }).catch(() => {
+                            throw new Error(`Network response was not ok ${response.statusText}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    interpretationTextDiv.innerHTML = '';
+                    if (data.error) {
+                        typeWriterEffect(`<p>エラー: ${data.error}</p>`, interpretationTextDiv, 15);
+                    } else {
+                        typeWriterEffect(data.interpretation_html, interpretationTextDiv, 25);
+                    }
+                })
+                .catch(error => {
+                    console.error('解釈取得Fetchエラー:', error);
+                    typeWriterEffect(`<p>解釈の取得に失敗しました。(${error.message})</p>`, interpretationTextDiv, 15);
+                })
+                .finally(() => {
+                    interpretButton.disabled = false;
+                    interpretButton.textContent = '解釈を依頼する';
+                });
+        });
+
+        resetButton.addEventListener('click', function () {
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+                typingTimeout = null;
+            }
+
+            fetch('/reset', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    cardCount = 0;
+                    cardsListDiv.innerHTML = '';
+                    drawButton.style.display = 'inline-block';
+                    updateDrawButtonText();
+                    interactionArea.style.display = 'none';
+                    interpretationResultDiv.style.display = 'none';
+                    interpretationTextDiv.innerHTML = '';
+                    interpretationTextDiv.classList.remove('active-border');
+                    userQuestionTextarea.value = '';
+                    resetButton.style.display = 'none';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                })
+                .catch(error => {
+                    console.error('リセットFetchエラー:', error);
+                    alert('リセットに失敗しました。');
+                });
+        });
+
+        function updateDrawButtonText() {
+            const remaining = MAX_CARDS - cardCount;
+            drawButton.textContent = `カードを引く (残り ${remaining} 枚)`;
+        }
+
+        updateDrawButtonText();
+
+    </script>
+</body>
+
+</html>
