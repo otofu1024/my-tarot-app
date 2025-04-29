@@ -51,7 +51,7 @@ def generate_interpretation(prompt):
     if model is None:
         print("エラー: Geminiモデルが初期化されていません。")
         if not initialize_gemini(): # 再度初期化を試みる
-             return "エラー: Geminiモデルの初期化に失敗しました。"
+            return "エラー: Geminiモデルの初期化に失敗しました。"
 
     print("Geminiに応答を生成してもらっています...")
     try:

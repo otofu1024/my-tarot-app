@@ -6,253 +6,936 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>対話型タロット占い (ギリシャ十字)</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- styleタグは削除 -->
+    <style>
+        /* カード表示エリア */
+        .drawn-card {
+            margin-bottom: 30px;
+            /* カード間のスペースを広げる */
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* 個別解釈依頼ボタン */
+        .interpret-single-button {
+            font-size: 0.9em;
+            padding: 6px 12px;
+            margin-top: 12px;
+            margin-left: 0;
+            margin-right: auto;
+            background-color: #6c757d;
+            border-color: #6c757d;
+            color: white;
+        }
+
+        .interpret-single-button:hover {
+            background-color: #5a6268;
+            border-color: #5a6268;
+            color: white;
+        }
+
+        .interpret-single-button:disabled {
+            background-color: #e9ecef;
+            color: #6c757d;
+            border-color: #ced4da;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 対話履歴コンテナ */
+        .interaction-history {
+            margin-top: 15px;
+            border-left: 3px solid #e0e0e0;
+            /* 少し濃く */
+            padding-left: 15px;
+        }
+
+        /* 各対話ターン */
+        .interaction-turn {
+            margin-bottom: 15px;
+        }
+
+        /* AI解釈/反応メッセージ */
+        .ai-message {
+            padding: 10px 15px;
+            background-color: #e9f7ff;
+            /* 薄い青 */
+            border: 1px solid #b8daff;
+            /* 枠線調整 */
+            border-radius: 8px;
+            /* 角丸調整 */
+            font-size: 0.95em;
+            line-height: 1.6;
+            margin-bottom: 10px;
+            min-height: 1.6em;
+            position: relative;
+            /* 吹き出し風用 */
+        }
+
+        .ai-message::before {
+            /* 吹き出し風の三角 */
+            content: "";
+            position: absolute;
+            left: -10px;
+            top: 10px;
+            border: 5px solid transparent;
+            border-right-color: #b8daff;
+        }
+
+        .ai-message::after {
+            content: "";
+            position: absolute;
+            left: -8px;
+            top: 10px;
+            border: 5px solid transparent;
+            border-right-color: #e9f7ff;
+        }
+
+        /* ユーザーフィードバック表示 */
+        .user-feedback-display {
+            padding: 10px 15px;
+            background-color: #f8f9fa;
+            /* 薄いグレー */
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 0.95em;
+            line-height: 1.6;
+            text-align: right;
+            /* 右寄せ */
+            margin-bottom: 10px;
+            margin-left: 20%;
+            /* 左にスペース */
+            position: relative;
+        }
+
+        .user-feedback-display::before {
+            /* 吹き出し風の三角 (右側) */
+            content: "";
+            position: absolute;
+            right: -10px;
+            top: 10px;
+            border: 5px solid transparent;
+            border-left-color: #ced4da;
+        }
+
+        .user-feedback-display::after {
+            content: "";
+            position: absolute;
+            right: -8px;
+            top: 10px;
+            border: 5px solid transparent;
+            border-left-color: #f8f9fa;
+        }
+
+        /* フィードバック入力エリア */
+        .feedback-input-area {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #ccc;
+            display: none;
+        }
+
+        .feedback-input-area label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .feedback-input-area textarea {
+            width: 95%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.95em;
+            min-height: 50px;
+            resize: vertical;
+        }
+
+        .feedback-input-area button {
+            /* フィードバック送信ボタン */
+            font-size: 0.9em;
+            padding: 6px 12px;
+            margin-top: 10px;
+            margin-left: 0;
+            margin-right: 5px;
+            /* 右マージン */
+            background-color: #007bff;
+            border-color: #007bff;
+            color: white;
+        }
+
+        .feedback-input-area button:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+            color: white;
+        }
+
+        .feedback-input-area button:disabled {
+            background-color: #e9ecef;
+            color: #6c757d;
+            border-color: #ced4da;
+        }
+
+        /* 次のカードへ進むボタン */
+        .proceed-button {
+            font-size: 0.9em;
+            padding: 6px 12px;
+            margin-top: 10px;
+            background-color: #28a745;
+            border-color: #28a745;
+            color: white;
+            /* display: none; は feedback-input-area に依存 */
+        }
+
+        .proceed-button:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+            color: white;
+        }
+
+        /* 最終解釈ボタン */
+        #interpret-final-button {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            color: white;
+            /* 赤系に変更 */
+            display: none;
+            margin-top: 30px;
+        }
+
+        #interpret-final-button:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+            color: white;
+        }
+
+        #interpret-final-button:disabled {
+            background-color: #e9ecef;
+            color: #6c757d;
+            border-color: #ced4da;
+        }
+
+        /* ローディング */
+        .loading-dots span {
+            /* 既存スタイル */
+        }
+    </style>
 </head>
 
 <body>
     <h1>対話型タロット占い (ギリシャ十字)</h1>
 
-    <button id="draw-button">カードを引く (残り 5 枚)</button>
+    <!-- 質問入力エリア -->
+    <div id="interaction-area">
+        <label for="user-question">占いたい内容を入力してください:</label><br>
+        <textarea id="user-question" rows="4" cols="50" placeholder="例: 今後の仕事運について詳しく教えてください。"></textarea><br>
+        <button id="start-draw-button">カードを引く準備</button>
+    </div>
+
+    <!-- カード引きボタン (初期非表示) -->
+    <button id="draw-button" style="display: none;">カードを引く (残り 5 枚)</button>
     <button id="reset-button" style="display: none;">リセット</button>
 
-    <div id="drawn-cards-area">
+    <!-- 引いたカード表示エリア -->
+    <div id="drawn-cards-area" style="display: none;">
         <h2>引いたカード</h2>
-        <div id="cards-list"></div>
+        <div id="cards-list">
+            <!-- ここにカードが追加される -->
+        </div>
+        <!-- 最終解釈ボタン -->
+        <button id="interpret-final-button">最終的な総合解釈を依頼する</button>
     </div>
 
-    <div id="interaction-area" style="display: none;">
-        <label for="user-question">質問を入力してください:</label><br>
-        <textarea id="user-question" rows="4" cols="50" placeholder="例: これらのカードから、今後の仕事運について詳しく教えてください。"></textarea><br>
-        <button id="interpret-button">解釈を依頼する</button>
-    </div>
-
+    <!-- 最終解釈結果表示エリア -->
     <div id="interpretation-result" style="display: none;">
-        <h3>AIによる解釈</h3>
+        <h3>最終的な総合解釈</h3>
         <div id="interpretation-text"></div>
     </div>
 
     <script>
-        const drawButton = document.getElementById('draw-button');
-        const resetButton = document.getElementById('reset-button');
-        const cardsListDiv = document.getElementById('cards-list');
-        const interactionArea = document.getElementById('interaction-area');
-        const interpretationResultDiv = document.getElementById('interpretation-result');
-        const interpretationTextDiv = document.getElementById('interpretation-text');
-        const userQuestionTextarea = document.getElementById('user-question');
+        document.addEventListener('DOMContentLoaded', (event) => {
+            console.log("DOM fully loaded and parsed");
 
-        const MAX_CARDS = 5;
-        let cardCount = 0;
-        let typingTimeout = null;
+            // --- 要素取得 ---
+            const startDrawButton = document.getElementById('start-draw-button');
+            console.log("startDrawButton element:", startDrawButton);
+            const drawButton = document.getElementById('draw-button');
+            const resetButton = document.getElementById('reset-button');
+            const cardsListDiv = document.getElementById('cards-list');
+            const drawnCardsArea = document.getElementById('drawn-cards-area');
+            const interactionArea = document.getElementById('interaction-area');
+            const interpretFinalButton = document.getElementById('interpret-final-button');
+            const interpretationResultDiv = document.getElementById('interpretation-result');
+            const interpretationTextDiv = document.getElementById('interpretation-text');
+            const userQuestionTextarea = document.getElementById('user-question');
 
-        const positionNames = [
-            "1. 現在の状況、状態", "2. 障害、原因", "3. 現状維持で予想される傾向",
-            "4. 問題解決のための対策", "5. 最終結果"
-        ];
+            // --- 状態変数 ---
+            const MAX_CARDS = 5;
+            let cardCount = 0;
+            let typingTimeout = null;
+            let currentQuestion = '';
+            let interactionsHistory = Array(MAX_CARDS).fill(null).map(() => []);
+            let cardProcessStatus = Array(MAX_CARDS).fill(false);
 
-        function typeWriterEffect(htmlContent, element, speed = 25) {
-            if (typingTimeout) {
-                clearTimeout(typingTimeout);
-                typingTimeout = null;
-            }
-            element.innerHTML = '';
-            element.classList.add('active-border');
-            let i = 0;
-            let currentHTML = '';
-            let tagBuffer = '';
-            let inTag = false;
+            const positionNames = [
+                "1. 現在の状況、状態", "2. 障害、原因", "3. 現状維持で予想される傾向",
+                "4. 問題解決のための対策", "5. 最終結果"
+            ];
 
-            function type() {
-                if (i < htmlContent.length) {
-                    const char = htmlContent[i];
-
-                    if (char === '<') {
-                        inTag = true;
-                        tagBuffer += char;
-                    } else if (char === '>') {
-                        inTag = false;
-                        tagBuffer += char;
-                        currentHTML += tagBuffer;
-                        element.innerHTML = currentHTML;
-                        tagBuffer = '';
-                    } else if (inTag) {
-                        tagBuffer += char;
-                    } else {
-                        currentHTML += char;
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = currentHTML + '<span class="cursor">|</span>';
-                        element.innerHTML = tempDiv.innerHTML;
+            // --- タイピングエフェクト関数 ---
+            function typeWriterEffect(htmlContent, element, speed = 25, callback = null) {
+                console.log(`typeWriterEffect started for element:`, element); // Start log
+                if (typingTimeout && element.dataset.typingId === typingTimeout) { clearTimeout(typingTimeout); }
+                element.innerHTML = ''; element.style.display = 'block';
+                if (element.id === 'interpretation-text') element.classList.add('active-border');
+                let i = 0; let currentHTML = ''; let tagBuffer = ''; let inTag = false;
+                const currentTypingId = Date.now(); element.dataset.typingId = currentTypingId;
+                function type() {
+                    // console.log(`type() called, i: ${i}, char: ${htmlContent ? htmlContent[i] : 'N/A'}`); // Character log (can be very verbose)
+                    if (element.dataset.typingId !== String(currentTypingId)) {
+                        console.log("typeWriterEffect stopped: typingId mismatch.");
+                        return; // Stop if another typing effect started on the same element
                     }
-
-                    i++;
-                    // タイピング中もスクロールを一番下に維持
-                    element.scrollTop = element.scrollHeight;
-                    typingTimeout = setTimeout(type, speed);
-                } else {
-                    element.innerHTML = currentHTML;
-                    typingTimeout = null;
-                    // タイピング完了後、念のため再度スクロール
-                    interpretationResultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }
-            type();
-        }
-
-
-        drawButton.addEventListener('click', function () {
-            drawButton.disabled = true;
-            fetch('/draw_card', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error && data.card_count >= MAX_CARDS) {
-                        alert(data.error);
-                        // 5枚引き終わっている場合のエラーでも質問エリア表示とスクロール
-                        interactionArea.style.display = 'block';
-                        resetButton.style.display = 'inline-block';
-                        setTimeout(() => {
-                            interactionArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 100);
-                    } else if (data.error) {
-                        alert(data.error);
+                    if (htmlContent && i < htmlContent.length) { // Add check for htmlContent existence
+                        const char = htmlContent[i];
+                        if (char === '<') { inTag = true; tagBuffer += char; }
+                        else if (char === '>') { inTag = false; tagBuffer += char; currentHTML += tagBuffer; element.innerHTML = currentHTML; tagBuffer = ''; }
+                        else if (inTag) { tagBuffer += char; }
+                        else { currentHTML += char; const tempDiv = document.createElement('div'); tempDiv.innerHTML = currentHTML + '<span class="cursor">|</span>'; element.innerHTML = tempDiv.innerHTML; }
+                        i++;
+                        // element.scrollTop = element.scrollHeight; // Scroll inside loop might be too frequent
+                        typingTimeout = setTimeout(type, speed); element.dataset.typingId = currentTypingId;
                     } else {
-                        const newCard = data.new_card;
-                        const cardIndex = data.card_count - 1;
-                        const positionName = positionNames[cardIndex] || `${data.card_count}枚目`;
-
-                        const cardDiv = document.createElement('div');
-                        cardDiv.classList.add('drawn-card');
-                        cardDiv.style.opacity = '0';
-                        cardDiv.innerHTML = `
-                        <span class="position-name">${positionName}</span>
-                        <h4>${newCard.card_name} (${newCard.orientation})</h4>
-                        <p>意味: ${newCard.meaning}</p>
-                    `;
-                        cardsListDiv.appendChild(cardDiv);
-                        // 各カード追加時のスクロールは削除
-
-                        setTimeout(() => {
-                            cardDiv.classList.add('card-fade-in');
-                            cardDiv.style.opacity = '1';
-                        }, 50);
-
-                        cardCount = data.card_count;
-                        updateDrawButtonText();
-
-                        if (cardCount >= MAX_CARDS) {
-                            drawButton.style.display = 'none';
-                            interactionArea.style.display = 'block';
-                            resetButton.style.display = 'inline-block';
-                            // 5枚引き終わったら質問エリアにスクロール
-                            setTimeout(() => {
-                                interactionArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }, 300); // カード表示アニメーション後にスクロール
+                        console.log("typeWriterEffect finished typing content."); // Finish log
+                        element.innerHTML = currentHTML; // Ensure final content is set without cursor
+                        element.dataset.typingId = ''; typingTimeout = null;
+                        const targetScrollElement = element.id === 'interpretation-text' ? interpretationResultDiv : element;
+                        if (targetScrollElement) {
+                            targetScrollElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                        if (callback && typeof callback === 'function') { // Check if callback is a function
+                            console.log("typeWriterEffect calling callback function."); // Callback log
+                            try {
+                                callback(); // Execute callback
+                            } catch (e) {
+                                console.error("Error executing typeWriterEffect callback:", e);
+                            }
                         } else {
-                            resetButton.style.display = 'inline-block';
+                            console.log("typeWriterEffect finished, no valid callback provided.");
                         }
                     }
-                })
-                .catch(error => {
-                    console.error('カード取得Fetchエラー:', error);
-                    alert('カード情報の取得に失敗しました。');
-                })
-                .finally(() => {
+                }
+                // Add a check in case htmlContent is null or empty initially
+                if (!htmlContent) {
+                    console.warn("typeWriterEffect called with empty or null content.");
+                    if (callback && typeof callback === 'function') {
+                        console.log("typeWriterEffect (empty content) calling callback function.");
+                        try { callback(); } catch (e) { console.error("Error executing typeWriterEffect callback (empty content):", e); }
+                    }
+                    return;
+                }
+                type(); // Start the typing loop
+            }
+
+            // --- UI更新ヘルパー ---
+            function showFeedbackInput(cardIndex) {
+                console.log(`[Card ${cardIndex}] showFeedbackInput called.`); // Log function call
+                const cardDiv = cardsListDiv.querySelector(`.drawn-card[data-index="${cardIndex}"]`);
+                if (!cardDiv) {
+                    console.error(`[Card ${cardIndex}] showFeedbackInput: cardDiv not found.`);
+                    return;
+                }
+                const feedbackInputArea = cardDiv.querySelector('.feedback-input-area');
+                if (!feedbackInputArea) {
+                    console.error(`[Card ${cardIndex}] showFeedbackInput: feedbackInputArea not found.`);
+                    return; // 要素チェック追加
+                }
+                const textarea = feedbackInputArea.querySelector('textarea');
+                const submitButton = feedbackInputArea.querySelector('.submit-feedback-button');
+                const proceedButton = feedbackInputArea.querySelector('.proceed-button');
+                console.log(`[Card ${cardIndex}] showFeedbackInput: proceedButton element:`, proceedButton); // Log proceedButton element
+
+                if (textarea) { // 要素チェック追加
+                    textarea.value = '';
+                    textarea.disabled = false;
+                }
+                if (submitButton) { // 要素チェック追加
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'フィードバックを送信';
+                }
+                if (proceedButton) { // 要素チェック追加
+                    proceedButton.style.display = 'inline-block'; // Ensure display is set
+                    console.log(`[Card ${cardIndex}] showFeedbackInput: Set proceedButton display to inline-block.`); // Log display set
+                } else {
+                    console.error(`[Card ${cardIndex}] showFeedbackInput: proceedButton element NOT found inside feedbackInputArea.`); // Log if not found
+                }
+                feedbackInputArea.style.display = 'block';
+                feedbackInputArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            function hideFeedbackInput(cardIndex) { /* ... 変更なし ... */ }
+
+            function enableDrawButtonIfNeeded() {
+                if (!drawButton) return;
+                // 5枚未満で、かつ進行中の対話がない場合のみ有効化
+                if (cardCount < MAX_CARDS && !cardProcessStatus.some(status => status && status !== 'interaction_done')) {
                     drawButton.disabled = false;
+                    drawButton.style.display = 'inline-block'; // 表示も制御
+                } else {
+                    drawButton.disabled = true;
+                    // 5枚引いたら非表示にする
+                    if (cardCount >= MAX_CARDS) {
+                        drawButton.style.display = 'none';
+                    }
+                }
+
+                if (!interpretFinalButton) return;
+                // 5枚引き終わり、全ての対話が完了したら最終解釈ボタン表示
+                if (cardCount === MAX_CARDS && cardProcessStatus.every(status => status === 'interaction_done')) {
+                    interpretFinalButton.style.display = 'inline-block';
+                    interpretFinalButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    interpretFinalButton.style.display = 'none';
+                }
+            }
+
+            // --- 個別カード解釈実行関数 ---
+            function interpretSingleCard(index, question, buttonElement) {
+                console.log(`[Card ${index}] interpretSingleCard called. Status: ${cardProcessStatus[index]}, Button disabled: ${buttonElement ? buttonElement.disabled : 'N/A'}`); // Log function call
+                if (cardProcessStatus[index] || !buttonElement || buttonElement.disabled) return; // 要素チェック追加
+
+                buttonElement.disabled = true;
+                buttonElement.textContent = '解釈中...';
+                cardProcessStatus[index] = 'interpreting';
+                if (drawButton) drawButton.disabled = true; // 要素チェック追加
+
+                const cardDiv = cardsListDiv.querySelector(`.drawn-card[data-index="${index}"]`);
+                if (!cardDiv) return; // 要素チェック追加
+                const historyContainer = cardDiv.querySelector('.interaction-history');
+                if (!historyContainer) return; // 要素チェック追加
+
+                const loadingDiv = document.createElement('div');
+                loadingDiv.classList.add('ai-message');
+                loadingDiv.innerHTML = `<p style="text-align: center;"><span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></p>`;
+                historyContainer.appendChild(loadingDiv);
+                loadingDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                fetch('/interpret', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question, type: 'single', card_index: index })
+                })
+                    .then(response => { // Log raw response status
+                        console.log(`[Card ${index}] interpretSingleCard fetch response status: ${response.status}`);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log(`[Card ${index}] interpretSingleCard fetch success. Data received:`, data); // Log received data
+                        // loadingDiv がまだ存在するか確認してから削除
+                        if (loadingDiv && loadingDiv.parentNode) { // Check existence and parentNode
+                            loadingDiv.parentNode.removeChild(loadingDiv); // Use parentNode.removeChild
+                        }
+                        if (data.error) {
+                            console.error(`[Card ${index}] Server returned error: ${data.error}`); // Log server-side error
+                            const errorDiv = document.createElement('div');
+                            errorDiv.classList.add('ai-message');
+                            typeWriterEffect(`<p>エラー: ${data.error}</p>`, errorDiv, 15);
+                            historyContainer.appendChild(errorDiv);
+                            cardProcessStatus[index] = false;
+                            buttonElement.disabled = false;
+                            buttonElement.textContent = 'このカードについて解釈を依頼';
+                            enableDrawButtonIfNeeded();
+                        } else if (data.interpretation_html) { // Check if interpretation_html exists
+                            const interpretation = data.interpretation_html;
+                            console.log(`[Card ${index}] Interpretation received, adding to history.`);
+                            interactionsHistory[index].push({ interpretation: interpretation });
+
+                            const turnDiv = document.createElement('div');
+                            turnDiv.classList.add('interaction-turn');
+                            const messageDiv = document.createElement('div');
+                            messageDiv.classList.add('ai-message');
+                            historyContainer.appendChild(turnDiv);
+                            turnDiv.appendChild(messageDiv);
+
+                            console.log(`[Card ${index}] Calling typeWriterEffect for interpretation.`);
+                            typeWriterEffect(interpretation, messageDiv, 25, () => {
+                                console.log(`[Card ${index}] typeWriterEffect finished. Setting status to waiting_feedback.`);
+                                cardProcessStatus[index] = 'waiting_feedback';
+                                buttonElement.textContent = '解釈済み';
+                                showFeedbackInput(index);
+                            });
+                        } else { // Handle case where interpretation_html is missing
+                            console.error(`[Card ${index}] Server response missing 'interpretation_html'. Data:`, data);
+                            const errorDiv = document.createElement('div');
+                            errorDiv.classList.add('ai-message');
+                            typeWriterEffect(`<p>エラー: サーバーから有効な解釈を取得できませんでした。</p>`, errorDiv, 15);
+                            historyContainer.appendChild(errorDiv);
+                            cardProcessStatus[index] = false;
+                            buttonElement.disabled = false;
+                            buttonElement.textContent = 'このカードについて解釈を依頼';
+                            enableDrawButtonIfNeeded();
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`[Card ${index}] interpretSingleCard fetch failed:`, error); // Enhanced catch log
+                        // loadingDiv がまだ存在するか確認してから削除
+                        if (loadingDiv && loadingDiv.parentNode) { // Check existence and parentNode
+                            loadingDiv.parentNode.removeChild(loadingDiv); // Use parentNode.removeChild
+                        }
+                        const errorDiv = document.createElement('div');
+                        errorDiv.classList.add('ai-message');
+                        typeWriterEffect(`<p>解釈の取得中にエラーが発生しました。(${error.message})</p>`, errorDiv, 15); // More generic error message
+                        if (historyContainer) historyContainer.appendChild(errorDiv); // Check historyContainer existence
+                        cardProcessStatus[index] = false; // Ensure status reset on catch
+                        if (buttonElement) { // Ensure button reset on catch
+                            buttonElement.disabled = false;
+                            buttonElement.textContent = 'このカードについて解釈を依頼';
+                        }
+                        enableDrawButtonIfNeeded(); // Ensure button state update on catch
+                    });
+            }
+
+            // --- フィードバック送信 & AI反応取得関数 ---
+            function submitFeedbackAndGetReaction(index) {
+                console.log(`[Card ${index}] submitFeedbackAndGetReaction called.`); // Log function call
+                const cardDiv = cardsListDiv.querySelector(`.drawn-card[data-index="${index}"]`);
+                if (!cardDiv) {
+                    console.error(`[Card ${index}] submitFeedbackAndGetReaction: cardDiv not found.`);
+                    return;
+                }
+                const feedbackInputArea = cardDiv.querySelector('.feedback-input-area');
+                if (!feedbackInputArea) {
+                    console.error(`[Card ${index}] submitFeedbackAndGetReaction: feedbackInputArea not found.`);
+                    return;
+                }
+                const textarea = feedbackInputArea.querySelector('textarea');
+                const feedbackText = textarea ? textarea.value.trim() : '';
+                const submitButton = feedbackInputArea.querySelector('.submit-feedback-button');
+                const proceedButton = feedbackInputArea.querySelector('.proceed-button');
+
+                if (!feedbackText) {
+                    alert('フィードバックを入力してください。');
+                    if (textarea) textarea.focus();
+                    return;
+                }
+
+                if (submitButton) submitButton.disabled = true;
+                if (proceedButton) proceedButton.disabled = true; // Disable proceed button too
+                if (textarea) textarea.disabled = true;
+
+                // ユーザーフィードバック表示
+                const historyContainer = cardDiv.querySelector('.interaction-history');
+                if (!historyContainer) {
+                    console.error(`[Card ${index}] submitFeedbackAndGetReaction: historyContainer not found.`);
+                    // Re-enable buttons if history container is missing
+                    if (submitButton) submitButton.disabled = false;
+                    if (proceedButton) proceedButton.disabled = false;
+                    if (textarea) textarea.disabled = false;
+                    return;
+                }
+                const lastTurn = historyContainer.querySelector('.interaction-turn:last-child');
+                if (lastTurn) {
+                    const feedbackDisplay = document.createElement('div');
+                    feedbackDisplay.classList.add('user-feedback-display');
+                    feedbackDisplay.textContent = feedbackText;
+                    lastTurn.appendChild(feedbackDisplay);
+                    feedbackDisplay.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    console.warn(`[Card ${index}] submitFeedbackAndGetReaction: No previous interaction turn found to append feedback.`);
+                }
+
+                interactionsHistory[index][interactionsHistory[index].length - 1].feedback = feedbackText;
+
+                // AIの反応表示（ローディング）
+                const loadingDiv = document.createElement('div');
+                loadingDiv.classList.add('ai-message');
+                loadingDiv.innerHTML = `<p style="text-align: center;"><span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></p>`;
+                if (lastTurn) lastTurn.appendChild(loadingDiv);
+                else historyContainer.appendChild(loadingDiv); // Append to history if no turn
+                loadingDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                console.log(`[Card ${index}] Sending feedback to /interpret... Feedback: "${feedbackText}"`); // Log before fetch
+                fetch('/interpret', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    // ★変更点: card_interactions を追加
+                    body: JSON.stringify({ question: currentQuestion, type: 'feedback', card_index: index, feedback: feedbackText, card_interactions: interactionsHistory[index] })
+                })
+                    .then(response => {
+                        console.log(`[Card ${index}] Feedback fetch response status: ${response.status}`);
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log(`[Card ${index}] Feedback fetch success. Data received:`, data); // Log received data
+                        // loadingDiv がまだ存在するか確認してから削除
+                        if (loadingDiv && loadingDiv.parentNode) { // Check existence and parentNode
+                            loadingDiv.parentNode.removeChild(loadingDiv); // Use parentNode.removeChild
+                        }
+
+                        if (data.error) {
+                            console.error(`[Card ${index}] Server returned error on feedback: ${data.error}`);
+                            const errorDiv = document.createElement('div');
+                            errorDiv.classList.add('ai-message');
+                            typeWriterEffect(`<p>エラー: ${data.error}</p>`, errorDiv, 15);
+                            if (lastTurn) lastTurn.appendChild(errorDiv); else historyContainer.appendChild(errorDiv);
+                            // Re-enable buttons on error
+                            if (submitButton) submitButton.disabled = false;
+                            if (proceedButton) proceedButton.disabled = false;
+                            if (textarea) textarea.disabled = false;
+
+                        } else if (data.reaction_html) {
+                            const reaction = data.reaction_html;
+                            interactionsHistory[index][interactionsHistory[index].length - 1].reaction = reaction;
+
+                            const reactionDiv = document.createElement('div');
+                            reactionDiv.classList.add('ai-message');
+                            if (lastTurn) lastTurn.appendChild(reactionDiv); else historyContainer.appendChild(reactionDiv);
+
+                            console.log(`[Card ${index}] Calling typeWriterEffect for reaction.`);
+                            typeWriterEffect(reaction, reactionDiv, 25, () => {
+                                console.log(`[Card ${index}] Reaction typeWriterEffect finished.`);
+                                // Keep buttons disabled, user should click "Proceed"
+                                if (proceedButton) proceedButton.disabled = false; // Only re-enable proceed button
+                                if (textarea) textarea.value = ''; // Clear textarea for potential next feedback (though unlikely needed now)
+                                if (textarea) textarea.disabled = false; // Re-enable textarea
+                                if (submitButton) submitButton.disabled = false; // Re-enable submit button
+                            });
+                        } else {
+                            console.error(`[Card ${index}] Server response missing 'reaction_html'. Data:`, data);
+                            const errorDiv = document.createElement('div');
+                            errorDiv.classList.add('ai-message');
+                            typeWriterEffect(`<p>エラー: サーバーから有効な反応を取得できませんでした。</p>`, errorDiv, 15);
+                            if (lastTurn) lastTurn.appendChild(errorDiv); else historyContainer.appendChild(errorDiv);
+                            // Re-enable buttons on error
+                            if (submitButton) submitButton.disabled = false;
+                            if (proceedButton) proceedButton.disabled = false;
+                            if (textarea) textarea.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`[Card ${index}] Feedback fetch failed:`, error);
+                        // loadingDiv がまだ存在するか確認してから削除
+                        if (loadingDiv && loadingDiv.parentNode) { // Check existence and parentNode
+                            loadingDiv.parentNode.removeChild(loadingDiv); // Use parentNode.removeChild
+                        }
+                        const errorDiv = document.createElement('div');
+                        errorDiv.classList.add('ai-message');
+                        typeWriterEffect(`<p>AIの反応取得中にエラーが発生しました。(${error.message})</p>`, errorDiv, 15);
+                        if (lastTurn) lastTurn.appendChild(errorDiv); else historyContainer.appendChild(errorDiv);
+                        // Re-enable buttons on catch
+                        if (submitButton) submitButton.disabled = false;
+                        if (proceedButton) proceedButton.disabled = false;
+                        if (textarea) textarea.disabled = false;
+                    });
+            }
+
+            // --- 次のカードを引く処理 ---
+            function drawNextCard() {
+                if (!drawButton) return; // ボタンがなければ何もしない
+                console.log("drawNextCard called."); // Log entry
+                drawButton.disabled = true; // すぐに無効化
+
+                fetch('/draw_card', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error);
+                            console.log("drawNextCard fetch error:", data.error); // Log error
+                            // エラー時もボタン状態を更新 (5枚上限エラーなど考慮)
+                            enableDrawButtonIfNeeded();
+                        } else {
+                            const newCard = data.new_card;
+                            const cardIndex = data.card_count - 1;
+                            const positionName = positionNames[cardIndex] || `${data.card_count}枚目`;
+                            console.log(`drawNextCard success: Drawn card ${cardIndex + 1}`); // Log success
+                            cardProcessStatus[cardIndex] = false; // Explicitly set status for the new card
+
+                            // --- カード要素生成 ---
+                            const cardDiv = document.createElement('div');
+                            cardDiv.classList.add('drawn-card');
+                            cardDiv.dataset.index = cardIndex;
+                            cardDiv.style.opacity = '0';
+
+                            const cardInfoDiv = document.createElement('div');
+                            cardInfoDiv.innerHTML = `
+                            <span class="position-name">${positionName}</span>
+                            <h4>${newCard.card_name} (${newCard.orientation})</h4>
+                            <p>意味: ${newCard.meaning}</p>
+                        `;
+
+                            const interpretButton = document.createElement('button');
+                            interpretButton.classList.add('interpret-single-button');
+                            interpretButton.textContent = 'このカードについて解釈を依頼';
+
+                            const historyContainer = document.createElement('div');
+                            historyContainer.classList.add('interaction-history');
+
+                            const feedbackInputAreaDiv = document.createElement('div');
+                            feedbackInputAreaDiv.classList.add('feedback-input-area');
+                            feedbackInputAreaDiv.innerHTML = `
+                            <label>この解釈についてどう思いますか？</label>
+                            <textarea rows="2"></textarea>
+                            <button class="submit-feedback-button">フィードバックを送信</button>
+                            <button class="proceed-button">次のカードへ進む</button>
+                        `;
+
+                            cardDiv.appendChild(cardInfoDiv);
+                            cardDiv.appendChild(interpretButton);
+                            cardDiv.appendChild(historyContainer);
+                            cardDiv.appendChild(feedbackInputAreaDiv);
+
+                            if (cardsListDiv) {
+                                cardsListDiv.appendChild(cardDiv);
+                            } else {
+                                console.error("cardsListDiv element not found!");
+                                enableDrawButtonIfNeeded(); // 念のためボタン状態更新
+                                return;
+                            }
+
+                            // --- イベントリスナー設定 ---
+                            interpretButton.addEventListener('click', function () {
+                                console.log(`[Card ${cardIndex}] Interpret button clicked.`); // Log interpret button click
+                                interpretSingleCard(cardIndex, currentQuestion, this);
+                            });
+                            console.log(`[Card ${cardIndex}] Event listener added to interpretButton.`); // Log listener addition
+                            const feedbackButton = feedbackInputAreaDiv.querySelector('.submit-feedback-button');
+                            if (feedbackButton) {
+                                feedbackButton.addEventListener('click', function () {
+                                    submitFeedbackAndGetReaction(cardIndex);
+                                });
+                            }
+                            const proceedButton = feedbackInputAreaDiv.querySelector('.proceed-button');
+                            if (proceedButton) {
+                                proceedButton.addEventListener('click', function () {
+                                    proceedToNextStep(cardIndex);
+                                });
+                            }
+
+                            // アニメーションとスクロール
+                            setTimeout(() => {
+                                cardDiv.classList.add('card-fade-in');
+                                cardDiv.style.opacity = '1';
+                                cardDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }, 50);
+
+                            cardCount = data.card_count;
+                            updateDrawButtonText(); // Call before enableDrawButtonIfNeeded
+
+                            // ボタン状態更新 (5枚引いたら非表示になる)
+                            enableDrawButtonIfNeeded(); // This might disable the button if called too early?
+                        }
+                    })
+                    .catch(error => {
+                        console.error('カード取得Fetchエラー:', error);
+                        console.log("drawNextCard fetch failed:", error); // Log failure
+                        alert('カード情報の取得に失敗しました。');
+                        // エラー時もボタン状態を更新
+                        enableDrawButtonIfNeeded();
+                    });
+            }
+
+
+            // --- 「次のカードへ進む」ボタン処理 ---
+            function proceedToNextStep(index) {
+                // フィードバック待ち状態でのみ実行可能
+                console.log(`[Card ${index}] proceedToNextStep called. Status: ${cardProcessStatus[index]}`); // Log entry
+                const cardDiv = cardsListDiv.querySelector(`.drawn-card[data-index="${index}"]`);
+                const proceedButton = cardDiv ? cardDiv.querySelector('.proceed-button') : null;
+                if (proceedButton) proceedButton.disabled = true; // Disable immediately
+                if (cardProcessStatus[index] !== 'waiting_feedback') return;
+
+                cardProcessStatus[index] = 'interaction_done'; // このカードの対話完了
+                hideFeedbackInput(index); // フィードバック入力欄を隠す
+
+                // 5枚未満なら次のカードを自動で引く
+                if (cardCount < MAX_CARDS) {
+                    console.log(`Proceeding to draw next card (current count: ${cardCount})`);
+                    drawNextCard(); // ★変更点: 次のカードを引く関数を呼び出す
+                } else {
+                    console.log("All cards drawn, enabling final interpretation button.");
+                    // 5枚引き終わっていたら、最終解釈ボタンの状態を更新
+                    enableDrawButtonIfNeeded();
+                }
+            }
+
+
+            // --- 「カードを引く準備」ボタンの処理 ---
+            console.log("Attempting to add listener to startDrawButton...");
+            if (startDrawButton) {
+                startDrawButton.addEventListener('click', function () {
+                    console.log("startDrawButton clicked!");
+                    const question = userQuestionTextarea ? userQuestionTextarea.value.trim() : '';
+                    if (!question) {
+                        alert('占いたい内容を入力してください。');
+                        if (userQuestionTextarea) userQuestionTextarea.focus();
+                        return;
+                    }
+                    currentQuestion = question;
+
+                    console.log("Hiding interactionArea, showing drawButton, drawnCardsArea, resetButton");
+                    if (interactionArea) interactionArea.style.display = 'none';
+                    // ★変更点: drawButton を enableDrawButtonIfNeeded で表示/非表示・有効/無効を制御
+                    enableDrawButtonIfNeeded();
+                    if (drawnCardsArea) drawnCardsArea.style.display = 'block';
+                    if (resetButton) resetButton.style.display = 'inline-block';
+
+                    // スクロールは drawButton が表示された後に行う (enableDrawButtonIfNeeded 内で制御)
+                    // console.log("Scrolling to drawButton");
+                    // setTimeout(() => {
+                    //     if (drawButton && drawButton.style.display !== 'none') {
+                    //         // drawButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    //     }
+                    // }, 100);
                 });
-        });
-
-        document.getElementById('interpret-button').addEventListener('click', function () {
-            if (cardCount < MAX_CARDS) {
-                alert(`${MAX_CARDS}枚のカードを引いてください。`);
-                return;
+                console.log("Listener added to startDrawButton.");
+            } else {
+                console.error("startDrawButton element not found! Cannot add listener.");
             }
 
-            const userQuestion = userQuestionTextarea.value;
-            const interpretButton = this;
 
-            interpretButton.disabled = true;
-            interpretButton.textContent = '解釈中...';
+            // --- 「カードを引く」ボタンの処理 ---
+            if (drawButton) {
+                // ★変更点: クリック時に drawNextCard() を呼び出すだけにする
+                drawButton.addEventListener('click', function () {
+                    console.log("Draw button clicked, calling drawNextCard()");
+                    drawNextCard();
+                });
+            } else { console.error("drawButton element not found!"); }
 
-            if (typingTimeout) {
-                clearTimeout(typingTimeout);
-                typingTimeout = null;
-            }
-            interpretationTextDiv.classList.remove('active-border');
-            interpretationTextDiv.innerHTML = `<p style="text-align: center;"><span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></p>`;
-            interpretationResultDiv.style.display = 'block';
+            // --- 「最終的な総合解釈を依頼する」ボタンの処理 ---
+            if (interpretFinalButton) {
+                interpretFinalButton.addEventListener('click', function () {
+                    console.log("interpretFinalButton clicked."); // Log button click
+                    if (this.disabled) return;
+                    this.disabled = true;
+                    this.textContent = '総合解釈を生成中...';
+                    if (interpretationResultDiv) interpretationResultDiv.style.display = 'block';
+                    if (interpretationTextDiv) interpretationTextDiv.innerHTML = `<p style="text-align: center;"><span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></p>`;
+                    if (interpretationResultDiv) interpretationResultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-            // 解釈結果エリアが表示されたらスクロール (少し遅延させる)
-            setTimeout(() => {
-                interpretationResultDiv.scrollIntoView({ behavior: 'smooth', block: 'start' }); // 上端に表示
-            }, 100);
-
-
-            fetch('/interpret', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: userQuestion })
-            })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(errData => {
-                            throw new Error(errData.error || `Network response was not ok ${response.statusText}`);
-                        }).catch(() => {
-                            throw new Error(`Network response was not ok ${response.statusText}`);
+                    console.log("Sending request to /interpret for final interpretation..."); // Log before fetch
+                    fetch('/interpret', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        // ★変更点: card_interactions を追加
+                        body: JSON.stringify({ question: currentQuestion, type: 'final', card_interactions: interactionsHistory })
+                    })
+                        .then(response => {
+                            console.log(`Final interpretation fetch response status: ${response.status}`);
+                            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log("Final interpretation fetch success. Data received:", data); // Log received data
+                            if (data.error) {
+                                console.error(`Server returned error on final interpretation: ${data.error}`);
+                                if (interpretationTextDiv) typeWriterEffect(`<p>エラー: ${data.error}</p>`, interpretationTextDiv, 15);
+                                this.disabled = false; // Re-enable button on error
+                                this.textContent = '最終的な総合解釈を依頼する';
+                            } else if (data.interpretation_html) {
+                                console.log("Final interpretation received. Calling typeWriterEffect.");
+                                if (interpretationTextDiv) {
+                                    typeWriterEffect(data.interpretation_html, interpretationTextDiv, 25, () => {
+                                        console.log("Final interpretation typeWriterEffect finished.");
+                                        this.textContent = '総合解釈済み'; // Keep disabled after success
+                                    });
+                                }
+                            } else {
+                                console.error("Server response missing 'interpretation_html' for final interpretation. Data:", data);
+                                if (interpretationTextDiv) typeWriterEffect(`<p>エラー: サーバーから有効な総合解釈を取得できませんでした。</p>`, interpretationTextDiv, 15);
+                                this.disabled = false; // Re-enable button on error
+                                this.textContent = '最終的な総合解釈を依頼する';
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Final interpretation fetch failed:", error);
+                            if (interpretationTextDiv) { // Check if element exists before modifying
+                                typeWriterEffect(`<p>総合解釈の取得中にエラーが発生しました。(${error.message})</p>`, interpretationTextDiv, 15);
+                            }
+                            this.disabled = false; // Re-enable button on catch
+                            this.textContent = '最終的な総合解釈を依頼する';
                         });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    interpretationTextDiv.innerHTML = '';
-                    if (data.error) {
-                        typeWriterEffect(`<p>エラー: ${data.error}</p>`, interpretationTextDiv, 15);
-                    } else {
-                        typeWriterEffect(data.interpretation_html, interpretationTextDiv, 25);
-                    }
-                })
-                .catch(error => {
-                    console.error('解釈取得Fetchエラー:', error);
-                    typeWriterEffect(`<p>解釈の取得に失敗しました。(${error.message})</p>`, interpretationTextDiv, 15);
-                })
-                .finally(() => {
-                    interpretButton.disabled = false;
-                    interpretButton.textContent = '解釈を依頼する';
                 });
-        });
+            }
+            else { console.error("interpretFinalButton element not found!"); }
 
-        resetButton.addEventListener('click', function () {
-            if (typingTimeout) {
-                clearTimeout(typingTimeout);
-                typingTimeout = null;
+
+            // --- リセットボタンの処理 ---
+            if (resetButton) {
+                resetButton.addEventListener('click', function () {
+                    console.log("Reset button clicked.");
+                    if (!confirm('本当に占いをリセットしますか？')) {
+                        return; // キャンセルされたら何もしない
+                    }
+
+                    // サーバーにリセットを要求
+                    fetch('/reset', { method: 'POST' })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log("Reset response from server:", data.message);
+
+                            // --- フロントエンドのUIと状態をリセット ---
+                            // 状態変数をリセット
+                            cardCount = 0;
+                            currentQuestion = '';
+                            interactionsHistory = Array(MAX_CARDS).fill(null).map(() => []);
+                            cardProcessStatus = Array(MAX_CARDS).fill(false);
+
+                            // 表示エリアを初期状態に戻す
+                            if (interactionArea) interactionArea.style.display = 'block';
+                            if (drawnCardsArea) drawnCardsArea.style.display = 'none';
+                            if (cardsListDiv) cardsListDiv.innerHTML = ''; // カードリストを空にする
+                            if (interpretationResultDiv) interpretationResultDiv.style.display = 'none';
+                            if (interpretationTextDiv) interpretationTextDiv.innerHTML = ''; // 最終解釈を空にする
+
+                            // ボタンの状態を初期状態に戻す
+                            if (drawButton) drawButton.style.display = 'none';
+                            if (resetButton) resetButton.style.display = 'none';
+                            if (interpretFinalButton) interpretFinalButton.style.display = 'none'; // 念のため
+
+                            // 質問入力欄をクリア
+                            if (userQuestionTextarea) userQuestionTextarea.value = '';
+
+                            // カード枚数表示を更新
+                            updateDrawButtonText();
+
+                            // 画面を一番上にスクロール
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                            console.log("Frontend reset complete.");
+                        })
+                        .catch(error => {
+                            console.error('リセットFetchエラー:', error);
+                            alert('リセット処理中にエラーが発生しました。');
+                        });
+                });
+            }
+            else { console.error("resetButton element not found!"); }
+
+            // --- カードボタンテキスト更新関数 ---
+            function updateDrawButtonText() {
+                const remaining = MAX_CARDS - cardCount;
+                console.log(`updateDrawButtonText called. cardCount: ${cardCount}, remaining: ${remaining}`); // Log count and remaining
+                if (drawButton) { // 要素チェックは重要
+                    drawButton.textContent = `カードを引く (残り ${remaining} 枚)`;
+                    console.log("drawButton text updated."); // Log update confirmation
+                } else {
+                    console.error("updateDrawButtonText: drawButton element not found!"); // Log if button not found
+                }
             }
 
-            fetch('/reset', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    cardCount = 0;
-                    cardsListDiv.innerHTML = '';
-                    drawButton.style.display = 'inline-block';
-                    updateDrawButtonText();
-                    interactionArea.style.display = 'none';
-                    interpretationResultDiv.style.display = 'none';
-                    interpretationTextDiv.innerHTML = '';
-                    interpretationTextDiv.classList.remove('active-border');
-                    userQuestionTextarea.value = '';
-                    resetButton.style.display = 'none';
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                })
-                .catch(error => {
-                    console.error('リセットFetchエラー:', error);
-                    alert('リセットに失敗しました。');
-                });
-        });
+            // --- 初期化 ---
+            updateDrawButtonText();
+            // ★追加: 初期状態で drawButton が非表示であることを確認
+            if (drawButton) drawButton.style.display = 'none';
 
-        function updateDrawButtonText() {
-            const remaining = MAX_CARDS - cardCount;
-            drawButton.textContent = `カードを引く (残り ${remaining} 枚)`;
-        }
 
-        updateDrawButtonText();
-
+        }); // DOMContentLoaded
     </script>
 </body>
 
