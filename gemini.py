@@ -1,9 +1,12 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import os
+from dotenv import load_dotenv
 
 # --- グローバル変数 ---
 model = None
 api_key_configured = False
+
 
 # --- 初期化関数 ---
 def initialize_gemini():
@@ -15,7 +18,8 @@ def initialize_gemini():
 
     if api_key_configured:
         return True # すでに初期化済み
-
+    
+    load_dotenv()
     # 環境変数 "GOOGLE_API_KEY" から値を取得
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
@@ -23,17 +27,18 @@ def initialize_gemini():
     if GOOGLE_API_KEY is None:
         print("エラー: 環境変数 'GOOGLE_API_KEY' が設定されていません。")
         return False
-
+    """
     try:
-        genai.configure(api_key=GOOGLE_API_KEY)
+        genai.Client(api_key=GOOGLE_API_KEY)
         api_key_configured = True
     except Exception as e:
         print(f"APIキーの設定でエラーが発生しました: {e}")
         return False
-
+    """
+        
     try:
         # モデルを初期化 (必要に応じてモデル名を変更)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.Client(api_key=GOOGLE_API_KEY)
         print("Geminiモデルの初期化完了。")
         return True
     except Exception as e:
@@ -55,7 +60,9 @@ def generate_interpretation(prompt):
 
     print("Geminiに応答を生成してもらっています...")
     try:
-        response = model.generate_content(prompt)
+        response = model.models.generate_content(
+            model = "gemini-2.0-flash-001", contents = prompt
+        )
         print("Geminiからの応答取得完了。")
         return response.text
     except Exception as e:
